@@ -162,7 +162,8 @@ impl slint::platform::Platform for EspBackend {
             .with_display_size(128, 160)
             .with_window_offset_handler(|_| (0, 0))
             .with_framebuffer_size(128, 160)
-            .with_invert_colors(mipidsi::ColorInversion::Inverted)
+            // .with_invert_colors(mipidsi::ColorInversion::Inverted)
+            .with_invert_colors(mipidsi::ColorInversion::Normal)
             .init(&mut delay, Some(rst))
             .unwrap();
 
