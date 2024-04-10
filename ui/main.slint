@@ -1,8 +1,10 @@
 import { HorizontalBox, VerticalBox, Button } from "std-widgets.slint";
 
 component Circle inherits Rectangle {
-    width: 30px;
-    height: 30px;
+    width: 15px;
+    // 缩小圆形的尺寸
+    height: 15px;
+    // 缩小圆形的尺寸
     border-radius: root.width / 2;
 }
 
@@ -10,8 +12,10 @@ export component Recipe inherits Window {
     in-out property <int> counter: 0;
     states [
         left-aligned when counter > 0: {
-            circle1.x: 0px; circle1.y: 40px;
-            circle2.x: 0px; circle2.y: 0px;
+            circle1.x: 0px;
+            circle1.y: 20px;// 调整位置以适应屏幕
+            circle2.x: 0px;
+            circle2.y: 0px;// 调整位置以适应屏幕
             in {
                 animate circle1.x, circle2.x { duration: 250ms; }
             }
@@ -20,32 +24,48 @@ export component Recipe inherits Window {
             }
         }
         right-aligned when counter <= 0: {
-            circle1.x: 170px; circle1.y: 70px;
-            circle2.x: 170px; circle2.y: 00px;
+            circle1.x: 93px;
+            circle1.y: 35px;// 调整位置以适应屏幕
+            circle2.x: 93px;
+            circle2.y: 0px;// 调整位置以适应屏幕
         }
     ]
-
-    /*VerticalLayout {
-        Image {
-            source: @image-url("./img/1.png");
-            // image-fit default is `contain` when in layout, preserving aspect ratio
-        }
-    }*/
-
     VerticalBox {
+        padding: 10px;
         HorizontalBox {
             max-height: self.min-height;
-            b1 := Button {
-                text: "Press and hold to change state";
+            width: 108px;
+            alignment: center;
+            Button {
+                text: "Press";
+                width: 80px;
+                // 适应屏幕宽度
+                height: 20px;
+                // 减小按钮高度以适应屏幕
             }
         }
+
         Rectangle {
             background: root.background.darker(20%);
-            width: 250px;
-            height: 100px;
+            width: 108px;
+            // 适应屏幕宽度
+            height: 80px;
+            // 调整矩形高度以适应屏幕
 
-            circle1 := Circle { y:0; background: green; x: 85px; }
-            circle2 := Circle { background: blue; x: 85px; y: 40px; }
+            circle1 := Circle {
+                y: 0;
+                background: green;
+                x: 42px;
+            }
+
+            // 调整位置以适应屏幕
+            circle2 := Circle {
+                background: blue;
+                x: 42px;
+                y: 20px;
+            }
+
+            // 调整位置以适应屏幕
         }
     }
 }

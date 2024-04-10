@@ -117,12 +117,11 @@ impl slint::platform::Platform for EspBackend {
         // Initialize the timers used for Wifi
         // ANCHOR: wifi_init
         let timer = SystemTimer::new(peripherals.SYSTIMER).alarm0;
-        
 
         let mut delay = Delay::new(&clocks);
         let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
         // Set GPIO2 as an output, and set its state high initially.
-        let mut led = io.pins.gpio2.into_push_pull_output();
+        let mut led = io.pins.gpio0.into_push_pull_output();
 
         // Set GPIO9 as an input
         let mut button = io.pins.gpio9.into_pull_up_input();
@@ -140,9 +139,9 @@ impl slint::platform::Platform for EspBackend {
             riscv::interrupt::enable();
         }
 
-        let clk = io.pins.gpio6;
-        let sdo = io.pins.gpio7;
-        let cs = io.pins.gpio5;
+        let clk = io.pins.gpio7;
+        let sdo = io.pins.gpio8;
+        let cs = io.pins.gpio3;
 
         let spi = Spi::new_no_miso(
             peripherals.SPI2,
@@ -155,23 +154,23 @@ impl slint::platform::Platform for EspBackend {
         );
         println!("spi init.");
 
-        let dc = io.pins.gpio4.into_push_pull_output();
-        let rst = io.pins.gpio8.into_push_pull_output();
+        let dc = io.pins.gpio10.into_push_pull_output();
+        let rst = io.pins.gpio6.into_push_pull_output();
 
         let di = SPIInterfaceNoCS::new(spi, dc);
-        let display = mipidsi::Builder::st7789(di)
-            .with_display_size(240, 240)
+        let display = mipidsi::Builder::st7735s(di)
+            .with_display_size(128, 160)
             .with_window_offset_handler(|_| (0, 0))
-            .with_framebuffer_size(240, 240)
+            .with_framebuffer_size(128, 160)
             .with_invert_colors(mipidsi::ColorInversion::Inverted)
             .init(&mut delay, Some(rst))
             .unwrap();
 
         println!("display init.");
-        let mut bl = io.pins.gpio13.into_push_pull_output();
+        let mut bl = io.pins.gpio11.into_push_pull_output();
         bl.set_high().unwrap();
 
-        let size = slint::PhysicalSize::new(240, 240);
+        let size = slint::PhysicalSize::new(128, 160);
 
         self.window.borrow().as_ref().unwrap().set_size(size);
 
@@ -208,7 +207,7 @@ struct DrawBuffer<'a, Display> {
 
 impl<DI: display_interface::WriteOnlyDataCommand, RST: embedded_hal::digital::v2::OutputPin>
     slint::platform::software_renderer::LineBufferProvider
-    for &mut DrawBuffer<'_, Display<DI, mipidsi::models::ST7789, RST>>
+    for &mut DrawBuffer<'_, Display<DI, mipidsi::models::ST7735s, RST>>
 {
     type TargetPixel = slint::platform::software_renderer::Rgb565Pixel;
 
