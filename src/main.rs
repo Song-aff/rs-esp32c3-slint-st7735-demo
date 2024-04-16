@@ -5,37 +5,39 @@ extern crate core;
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::rc::Rc;
-use hal::gpio::{Event, Gpio9, Input, PullUp};
+use hal::gpio::IO;
 
 use core::cell::RefCell;
 use core::mem::MaybeUninit;
-use critical_section::Mutex;
-use display_interface_spi::SPIInterfaceNoCS;
+// use critical_section::Mutex;
+use display_interface_spi::SPIInterface;
 
 use esp_backtrace as _;
 use esp_println::println;
-use hal::spi::master::{dma, Spi};
+use hal::spi::master::Spi;
 use hal::{
     clock::{ClockControl, CpuClock},
+    delay::Delay,
     peripherals::Peripherals,
     prelude::*,
+    rtc_cntl::Rtc,
     spi::SpiMode,
     systimer::SystemTimer,
     timer::TimerGroup,
-    Delay, Rtc, IO,
+    //Delay, Rtc, IO,
 };
-use hal::{
-    interrupt,
-    peripherals::{self},
-    riscv,
-};
+// use hal::{
+//     interrupt,
+//     peripherals::{self},
+//     riscv,
+// };
 
-use mipidsi::Display;
+use mipidsi::{models::ST7735s, Display};
 
 #[global_allocator]
 static ALLOCATOR: esp_alloc::EspHeap = esp_alloc::EspHeap::empty();
 
-static BUTTON: Mutex<RefCell<Option<Gpio9<Input<PullUp>>>>> = Mutex::new(RefCell::new(None));
+// static BUTTON: Mutex<RefCell<Option<Gpio9<Input<PullUp>>>>> = Mutex::new(RefCell::new(None));
 
 fn init_heap() {
     const HEAP_SIZE: usize = 190 * 1024;
@@ -104,10 +106,10 @@ impl slint::platform::Platform for EspBackend {
         let system = peripherals.SYSTEM.split();
         let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock160MHz).freeze();
 
-        let mut rtc = Rtc::new(peripherals.RTC_CNTL);
-        let timer_group0 = TimerGroup::new(peripherals.TIMG0, &clocks);
+        let mut rtc = Rtc::new(peripherals.LPWR, None);
+        let timer_group0 = TimerGroup::new(peripherals.TIMG0, &clocks, None);
         let mut wdt0 = timer_group0.wdt;
-        let timer_group1 = TimerGroup::new(peripherals.TIMG1, &clocks);
+        let timer_group1 = TimerGroup::new(peripherals.TIMG1, &clocks, None);
         let mut wdt1 = timer_group1.wdt;
 
         rtc.rwdt.disable();
@@ -124,52 +126,67 @@ impl slint::platform::Platform for EspBackend {
         let mut led = io.pins.gpio0.into_push_pull_output();
 
         // Set GPIO9 as an input
-        let mut button = io.pins.gpio9.into_pull_up_input();
+        // let mut button = io.pins.gpio9.into_pull_up_input();
 
-        println!("button init.");
-        button.listen(Event::FallingEdge);
+        // println!("button init.");
+        // button.listen(Event::FallingEdge);
 
         // ANCHOR: critical_section
-        critical_section::with(|cs| BUTTON.borrow_ref_mut(cs).replace(button));
+        // critical_section::with(|cs| BUTTON.borrow_ref_mut(cs).replace(button));
         // ANCHOR_END: critical_section
         // ANCHOR: interrupt
-        interrupt::enable(peripherals::Interrupt::GPIO, interrupt::Priority::Priority2).unwrap();
-        // ANCHOR_END: interrupt
-        unsafe {
-            riscv::interrupt::enable();
-        }
+        // interrupt::enable(peripherals::Interrupt::GPIO, interrupt::Priority::Priority2).unwrap();
+        // // ANCHOR_END: interrupt
+        // unsafe {
+        //     riscv::interrupt::enable();
+        // }
 
         let clk = io.pins.gpio7;
         let sdo = io.pins.gpio8;
         let cs = io.pins.gpio3;
-
-        let spi = Spi::new_no_miso(
-            peripherals.SPI2,
-            clk,
-            sdo,
-            cs,
-            60u32.MHz(),
-            SpiMode::Mode0,
-            &clocks,
+        // MISO
+        // let spi = Spi::new_no_miso(
+        //     peripherals.SPI2,
+        //     clk,
+        //     sdo,
+        //     cs,
+        //     60u32.MHz(),
+        //     SpiMode::Mode0,
+        //     &clocks,
+        // );
+        let mut spi = Spi::new(peripherals.SPI2, 60u32.MHz(), SpiMode::Mode0, &clocks).with_pins(
+            Some(clk),
+            Some(sdo),
+            None,
+            Some(cs),
         );
         println!("spi init.");
 
         let dc = io.pins.gpio10.into_push_pull_output();
         let rst = io.pins.gpio6.into_push_pull_output();
 
-        let di = SPIInterfaceNoCS::new(spi, dc);
-        let display = mipidsi::Builder::st7735s(di)
-            .with_display_size(128, 160)
-            .with_window_offset_handler(|_| (0, 0))
-            .with_framebuffer_size(128, 160)
-            // .with_invert_colors(mipidsi::ColorInversion::Inverted)
-            .with_invert_colors(mipidsi::ColorInversion::Normal)
-            .init(&mut delay, Some(rst))
-            .unwrap();
+        let di = SPIInterface::new(spi, dc);
+        // let mut display = Display::st7735s(di, rst);
+
+        // let display = mipidsi::Builder::new(ST7735s, di)
+        //     .with_display_size(128, 160)
+        //     .with_window_offset_handler(|_| (0, 0))
+        //     .with_framebuffer_size(128, 160)
+        //     // .with_invert_colors(mipidsi::ColorInversion::Inverted)
+        //     // .with_invert_colors(mipidsi::ColorInversion::Normal)
+        //     .init(&mut delay, Some(rst))
+        //     .unwrap();
+
+        let display = mipidsi::Builder::new(ST7735s, di).init(&mut delay).unwrap();
+        // .reset_pin(rst)
+        // .color_order(mipidsi::options::ColorOrder::Rgb)
+        // .display_size(320, 240)
+        // .init(&mut delay)
+        // .unwrap();
 
         println!("display init.");
-        let mut bl = io.pins.gpio11.into_push_pull_output();
-        bl.set_high().unwrap();
+        // let mut bl = io.pins.gpio11.into_push_pull_output();
+        // bl.set_high().unwrap();
 
         let size = slint::PhysicalSize::new(128, 160);
 
@@ -192,7 +209,7 @@ impl slint::platform::Platform for EspBackend {
                     continue;
                 }
             }
-            led.toggle().unwrap();
+            // led.toggle().unwrap();
         }
     }
 
@@ -206,7 +223,7 @@ struct DrawBuffer<'a, Display> {
     buffer: &'a mut [slint::platform::software_renderer::Rgb565Pixel],
 }
 
-impl<DI: display_interface::WriteOnlyDataCommand, RST: embedded_hal::digital::v2::OutputPin>
+impl<DI: display_interface::WriteOnlyDataCommand, RST: embedded_hal::digital::OutputPin>
     slint::platform::software_renderer::LineBufferProvider
     for &mut DrawBuffer<'_, Display<DI, mipidsi::models::ST7735s, RST>>
 {
@@ -237,14 +254,14 @@ impl<DI: display_interface::WriteOnlyDataCommand, RST: embedded_hal::digital::v2
     }
 }
 
-#[interrupt]
-fn GPIO() {
-    critical_section::with(|cs| {
-        println!("GPIO interrupt");
-        BUTTON
-            .borrow_ref_mut(cs)
-            .as_mut()
-            .unwrap()
-            .clear_interrupt();
-    });
-}
+// #[interrupt]
+// fn GPIO() {
+//     critical_section::with(|cs| {
+//         println!("GPIO interrupt");
+//         BUTTON
+//             .borrow_ref_mut(cs)
+//             .as_mut()
+//             .unwrap()
+//             .clear_interrupt();
+//     });
+// }
