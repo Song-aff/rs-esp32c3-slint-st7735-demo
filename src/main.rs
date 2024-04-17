@@ -5,7 +5,7 @@ extern crate core;
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::rc::Rc;
-use hal::gpio::IO;
+use hal::gpio::{self, IO};
 
 use core::cell::RefCell;
 use core::mem::MaybeUninit;
@@ -141,9 +141,9 @@ impl slint::platform::Platform for EspBackend {
         //     riscv::interrupt::enable();
         // }
 
-        let clk = io.pins.gpio7;
-        let sdo = io.pins.gpio8;
-        let cs = io.pins.gpio3;
+        let clk = io.pins.gpio7.into_push_pull_output();
+        let sdo = io.pins.gpio8.into_push_pull_output();
+        let cs = io.pins.gpio3.into_push_pull_output();
         // MISO
         // let spi = Spi::new_no_miso(
         //     peripherals.SPI2,
@@ -154,18 +154,20 @@ impl slint::platform::Platform for EspBackend {
         //     SpiMode::Mode0,
         //     &clocks,
         // );
-        let mut spi = Spi::new(peripherals.SPI2, 60u32.MHz(), SpiMode::Mode0, &clocks).with_pins(
+        let spi = Spi::new(peripherals.SPI2, 60u32.MHz(), SpiMode::Mode0, &clocks).with_pins(
             Some(clk),
             Some(sdo),
-            None,
-            Some(cs),
+            gpio::NO_PIN,
+            gpio::NO_PIN,
         );
         println!("spi init.");
 
         let dc = io.pins.gpio10.into_push_pull_output();
         let rst = io.pins.gpio6.into_push_pull_output();
+        // let di: SPIInterfaceNoCS<Spi<'{error}, SPI2, FullDuplexMode>, GpioPin<Output<PushPull>, 10>>
+        let spi_device = embedded_hal_bus::spi::ExclusiveDevice::new(spi, cs, delay);
 
-        let di = SPIInterface::new(spi, dc);
+        let di = SPIInterface::new(spi_device, dc);
         // let mut display = Display::st7735s(di, rst);
 
         // let display = mipidsi::Builder::new(ST7735s, di)
@@ -177,12 +179,12 @@ impl slint::platform::Platform for EspBackend {
         //     .init(&mut delay, Some(rst))
         //     .unwrap();
 
-        let display = mipidsi::Builder::new(ST7735s, di).init(&mut delay).unwrap();
-        // .reset_pin(rst)
-        // .color_order(mipidsi::options::ColorOrder::Rgb)
-        // .display_size(320, 240)
-        // .init(&mut delay)
-        // .unwrap();
+        let display = mipidsi::Builder::new(ST7735s, di)
+            .reset_pin(rst)
+            .color_order(mipidsi::options::ColorOrder::Rgb)
+            .display_size(320, 240)
+            .init(&mut delay)
+            .unwrap();
 
         println!("display init.");
         // let mut bl = io.pins.gpio11.into_push_pull_output();

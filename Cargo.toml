@@ -7,16 +7,18 @@ license = "MIT OR Apache-2.0"
 build = "build.rs"
 
 [dependencies]
-embedded-hal = { version = "1.0.0" }
 hal = { package = "esp-hal", git = "https://github.com/Song-aff/esp-hal-c3", branch = "main", features = [
     "esp32c3",
+    "embedded-hal",
 ] }
+embedded-hal = { version = "1.0.0" }
 esp-backtrace = { version = "0.11.1", features = [
     "esp32c3",
     "panic-handler",
     "exception-handler",
     "println",
 ] }
+
 esp-println = { version = "0.9.1", features = ["esp32c3", "log"] }
 log = { version = "0.4.20" }
 esp-alloc = { version = "0.3.0" }
@@ -33,6 +35,8 @@ slint = { git = "https://github.com/slint-ui/slint", default-features = false, f
     "libm",
     "renderer-software",
 ] }
+embedded-hal-bus = "0.1.0"
+
 # slint = { version = "*", default-features = false, features = [
 #     "compat-1-2",
 #     "unsafe-single-threaded",
