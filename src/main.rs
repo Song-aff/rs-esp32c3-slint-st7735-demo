@@ -6,6 +6,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::rc::Rc;
 use hal::gpio::{self, IO};
+use mipidsi::options::{Orientation, Rotation};
 
 use core::cell::RefCell;
 use core::mem::MaybeUninit;
@@ -32,7 +33,7 @@ use hal::{
 //     riscv,
 // };
 
-use mipidsi::{models::ST7735s, Display};
+use mipidsi::{models::ST7796, Display};
 
 #[global_allocator]
 static ALLOCATOR: esp_alloc::EspHeap = esp_alloc::EspHeap::empty();
@@ -141,9 +142,9 @@ impl slint::platform::Platform for EspBackend {
         //     riscv::interrupt::enable();
         // }
 
-        let clk = io.pins.gpio7.into_push_pull_output();
-        let sdo = io.pins.gpio8.into_push_pull_output();
-        let cs = io.pins.gpio3.into_push_pull_output();
+        let clk = io.pins.gpio2.into_push_pull_output();
+        let sdo = io.pins.gpio10.into_push_pull_output();
+        let cs = io.pins.gpio19.into_push_pull_output();
         // MISO
         // let spi = Spi::new_no_miso(
         //     peripherals.SPI2,
@@ -162,15 +163,15 @@ impl slint::platform::Platform for EspBackend {
         );
         println!("spi init.");
 
-        let dc = io.pins.gpio10.into_push_pull_output();
-        let rst = io.pins.gpio6.into_push_pull_output();
+        let dc = io.pins.gpio6.into_push_pull_output();
+        let rst = io.pins.gpio3.into_push_pull_output();
         // let di: SPIInterfaceNoCS<Spi<'{error}, SPI2, FullDuplexMode>, GpioPin<Output<PushPull>, 10>>
         let spi_device = embedded_hal_bus::spi::ExclusiveDevice::new(spi, cs, delay);
 
         let di = SPIInterface::new(spi_device, dc);
-        // let mut display = Display::st7735s(di, rst);
+        // let mut display = Display::ST7796(di, rst);
 
-        // let display = mipidsi::Builder::new(ST7735s, di)
+        // let display = mipidsi::Builder::new(ST7796, di)
         //     .with_display_size(128, 160)
         //     .with_window_offset_handler(|_| (0, 0))
         //     .with_framebuffer_size(128, 160)
@@ -179,10 +180,14 @@ impl slint::platform::Platform for EspBackend {
         //     .init(&mut delay, Some(rst))
         //     .unwrap();
 
-        let display = mipidsi::Builder::new(ST7735s, di)
+        let display = mipidsi::Builder::new(ST7796, di)
+            .orientation(Orientation {
+                rotation: Rotation::Deg0,
+                mirrored: true,
+            })
             .reset_pin(rst)
             .color_order(mipidsi::options::ColorOrder::Rgb)
-            .display_size(320, 240)
+            .display_size(320, 480)
             .init(&mut delay)
             .unwrap();
 
@@ -190,13 +195,13 @@ impl slint::platform::Platform for EspBackend {
         // let mut bl = io.pins.gpio11.into_push_pull_output();
         // bl.set_high().unwrap();
 
-        let size = slint::PhysicalSize::new(128, 160);
+        let size = slint::PhysicalSize::new(320, 480);
 
         self.window.borrow().as_ref().unwrap().set_size(size);
 
         let mut buffer_provider = DrawBuffer {
             display,
-            buffer: &mut [slint::platform::software_renderer::Rgb565Pixel::default(); 240],
+            buffer: &mut [slint::platform::software_renderer::Rgb565Pixel::default(); 320],
         };
         println!("Start busy loop on main");
 
@@ -227,7 +232,7 @@ struct DrawBuffer<'a, Display> {
 
 impl<DI: display_interface::WriteOnlyDataCommand, RST: embedded_hal::digital::OutputPin>
     slint::platform::software_renderer::LineBufferProvider
-    for &mut DrawBuffer<'_, Display<DI, mipidsi::models::ST7735s, RST>>
+    for &mut DrawBuffer<'_, Display<DI, mipidsi::models::ST7796, RST>>
 {
     type TargetPixel = slint::platform::software_renderer::Rgb565Pixel;
 

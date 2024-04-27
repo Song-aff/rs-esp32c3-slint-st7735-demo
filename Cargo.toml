@@ -1,5 +1,5 @@
 [package]
-name = "rs-esp32c3-no-std-st7789-demo"
+name = "esp32c3_dev_board"
 version = "0.1.0"
 authors = ["aff-s <281218023@qq.com>"]
 edition = "2021"
